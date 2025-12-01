@@ -24,15 +24,8 @@ phases:
       - echo "Updating Lambda functions..."
       - INDEX_LAMBDA_NAME=${INDEX_LAMBDA_NAME:-cc-hw3-lf1-index-photos}
       - SEARCH_LAMBDA_NAME=${SEARCH_LAMBDA_NAME:-cc-hw3-lf2-search-photos}
-      - aws lambda update-function-code \
-          --function-name "$INDEX_LAMBDA_NAME" \
-          --zip-file fileb:///tmp/index-photos.zip \
-          --region us-east-1
-
-      - aws lambda update-function-code \
-          --function-name "$SEARCH_LAMBDA_NAME" \
-          --zip-file fileb:///tmp/search-photos.zip \
-          --region us-east-1
+      - aws lambda update-function-code --function-name "$INDEX_LAMBDA_NAME" --zip-file fileb:///tmp/index-photos.zip --region us-east-1
+      - aws lambda update-function-code --function-name "$SEARCH_LAMBDA_NAME" --zip-file fileb:///tmp/search-photos.zip --region us-east-1
 
 artifacts:
   files: []
