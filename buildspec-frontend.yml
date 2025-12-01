@@ -10,7 +10,8 @@ phases:
       - echo "Deploying frontend to S3..."
       - FRONTEND_BUCKET=${FRONTEND_BUCKET:-cc-hw3-b1-frontend}
       - FRONTEND_REGION=${FRONTEND_REGION:-us-east-1}
-      - aws s3 sync frontend/ "s3://$FRONTEND_BUCKET/" --delete --region "$FRONTEND_REGION"
+      - aws s3 sync frontend/ "s3://$FRONTEND_BUCKET/" --delete --exclude config.js --region "$FRONTEND_REGION"
+      - if [ -f frontend/config.js ]; then aws s3 cp frontend/config.js "s3://$FRONTEND_BUCKET/config.js" --region "$FRONTEND_REGION"; fi
 
 artifacts:
   files: []

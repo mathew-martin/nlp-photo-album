@@ -24,6 +24,13 @@ An S3/OpenSearch/Lex powered photo album with natural-language search, automatic
   - Pipelines: `nlp-photo-album-backend-pipeline` (deploys LF1/LF2), `nlp-photo-album-frontend-pipeline` (syncs frontend to B1)
   - Buildspecs: `buildspec-backend.yml`, `buildspec-frontend.yml`
 
+## Pipeline troubleshooting (what went wrong and the fixes)
+- Both backend and frontend CodeBuild projects were failing in `DOWNLOAD_SOURCE` with `authorization failed for primary source` because the CodeBuild roles lacked permission to use the GitHub CodeStar connection. Fix: add an inline policy granting `codestar-connections:UseConnection` on `arn:aws:codeconnections:us-east-1:217522444053:connection/b8e76c7f-11c6-46e7-9baa-bd33e49b575d` to:
+  - Backend role: `nlp-photo-album-codebuild-backend-role`
+  - Frontend role: `nlp-photo-album-codebuild-frontend-role`
+- Backend POST_BUILD then failed because multiline `aws lambda update-function-code` commands were mis-parsed and dropped `--function-name`. Fix: flatten the two Lambda update commands to single lines in `buildspec-backend.yml`.
+- Both CodeBuild projects are configured to read `buildspec-backend.yml` / `buildspec-frontend.yml` from the repo. After the above fixes, pipelines run successfully (backend deploys LF1/LF2, frontend syncs to the S3 static site bucket).
+
 ## Repo layout
 - `lambdas/index-photos/lambda_function.py` — LF1 handler
 - `lambdas/search-photos/lambda_search.py` — LF2 handler
