@@ -1,22 +1,71 @@
-# NLP Photo Album (AWS) – Lambdas
+# Photo Album (AWS)
 
-This directory contains the Lambda code for the assignment:
+An S3/OpenSearch/Lex powered photo album with natural-language search, automatic indexing via Rekognition, a static S3-hosted frontend, and CI/CD through CodePipeline/CodeBuild.
 
-- `lambdas/index-photos/lambda_function.py`: Triggered by S3 PUT on the photos bucket. Uses Rekognition to detect labels, reads custom labels from `x-amz-meta-customlabels` (metadata key `customLabels`), merges/dedupes, and indexes the document into the OpenSearch `photos` index.
-- `lambdas/search-photos/lambda_search.py`: Handles search requests (`q` query param). Optionally uses Lex V2 for keyword extraction (when configured), falls back to simple keyword splitting, queries OpenSearch, and returns matching photo metadata.
+## Stack
+- Storage: S3 bucket `cc-hw3-b2-photos` (public read for image display)
+- Indexing Lambda (LF1): `cc-hw3-lf1-index-photos`
+  - Trigger: S3 PUT on `cc-hw3-b2-photos`
+  - Actions: Rekognition `detect_labels`, read custom labels from `x-amz-meta-customLabels`, merge/dedupe, index into OpenSearch `photos`
+- Search Lambda (LF2): `cc-hw3-lf2-search-photos`
+  - Supports Lex V2 (bot id `PIFZCZXUFU`, alias `YCK6WUL81O`, locale `en_US`); falls back to simple keyword split
+  - `q="*"` returns all docs; result size up to 100
+- OpenSearch: domain `photos`, index `photos`
+- Lex V2 bot: `cc-hw3-photo-search` (SearchIntent with Keywords slot)
+- API Gateway (EDGE, stage `prod`): `https://3unsm2lg6i.execute-api.us-east-1.amazonaws.com/prod`
+  - GET `/search?q=<query>` → LF2 (API key required)
+  - PUT `/photos?objectKey=<key>` → S3 proxy to `cc-hw3-b2-photos` (API key required; optional `x-amz-meta-customLabels`)
+  - CORS enabled for `/search` and `/photos`
+- Frontend: S3 static site `cc-hw3-b1-frontend`
+  - URL: `http://cc-hw3-b1-frontend.s3-website-us-east-1.amazonaws.com`
+  - Config file: `frontend/config.js` (copy from `config.example.js`)
+- CI/CD (CodePipeline/CodeBuild):
+  - Artifact bucket: `nlp-photo-album-codepipeline-artifacts`
+  - Pipelines: `nlp-photo-album-backend-pipeline` (deploys LF1/LF2), `nlp-photo-album-frontend-pipeline` (syncs frontend to B1)
+  - Buildspecs: `buildspec-backend.yml`, `buildspec-frontend.yml`
 
-Environment/assumptions:
-- Region hardcoded to `us-east-1` in the index Lambda. Search Lambda reads `AWS_REGION` (defaults to `us-east-1`).
-- Search Lambda env vars: `OPENSEARCH_ENDPOINT`, `INDEX`, and (optionally) `LEX_BOT_ID`, `LEX_BOT_ALIAS_ID`, `LEX_LOCALE` for Lex V2 integration.
-- Both Lambdas rely on AWS SDK in the Lambda runtime (no external deps).
+## Repo layout
+- `lambdas/index-photos/lambda_function.py` — LF1 handler
+- `lambdas/search-photos/lambda_search.py` — LF2 handler
+- `frontend/` — static site (HTML/CSS/JS + config.example.js)
+- `buildspec-backend.yml` — zips Lambdas and updates LF1/LF2
+- `buildspec-frontend.yml` — syncs `frontend/` to the frontend bucket
 
-Frontend (static)
-- Location: `frontend/`
-- Files: `index.html`, `style.css`, `app.js`, `config.example.js`
-- Create `frontend/config.js` (copy from `config.example.js`) and set `API_BASE` and `API_KEY`.
-- Upload the contents of `frontend/` to a static S3 site (public read) and point it at the API Gateway endpoints.
+## Frontend usage
+1) Create `frontend/config.js`:
+   ```js
+   window.CONFIG = {
+     API_BASE: "https://3unsm2lg6i.execute-api.us-east-1.amazonaws.com/prod",
+     API_KEY: "<your api key>"
+   };
+   ```
+2) Deploy: `aws s3 sync frontend/ s3://cc-hw3-b1-frontend/ --delete --region us-east-1`
+3) Browse: `http://cc-hw3-b1-frontend.s3-website-us-east-1.amazonaws.com`
+   - Search bar at top; clear search → shows all photos (`*`)
+   - Click images for lightbox with next/prev arrows
+   - “+” opens upload modal (optional custom labels); Rekognition auto-labels
 
-Deployment pointers:
-- LF1 handler: `lambda_function.lambda_handler`
-- LF2 handler: `lambda_search.lambda_handler`
-- Ensure IAM roles allow: LF1 → S3 GetObject/HeadObject + Rekognition + ES HTTP; LF2 → ES HTTP; both → CloudWatch Logs.
+## Backend notes
+- LF1 env: hardcoded `us-east-1`; uses OPENSEARCH_ENDPOINT in code.
+- LF2 env: `OPENSEARCH_ENDPOINT`, `INDEX`, `LEX_BOT_ID`, `LEX_BOT_ALIAS_ID`, `LEX_LOCALE`; `q="*"` → match_all.
+- IAM: ensure LF1 has S3 GetObject/HeadObject, Rekognition, and OpenSearch HTTP; LF2 has OpenSearch HTTP (and Lex RecognizeText).
+
+## Pipelines (main branch)
+- Source: CodeStar connection `arn:aws:codeconnections:us-east-1:217522444053:connection/b8e76c7f-11c6-46e7-9baa-bd33e49b575d`
+- Backend CodeBuild: `nlp-photo-album-backend-build` (role `nlp-photo-album-codebuild-backend-role`)
+- Frontend CodeBuild: `nlp-photo-album-frontend-build` (role `nlp-photo-album-codebuild-frontend-role`)
+- Runs on push to `main` and deploys automatically.
+
+## API quick test
+```bash
+API=https://3unsm2lg6i.execute-api.us-east-1.amazonaws.com/prod
+KEY=<api key>
+curl -H "x-api-key: $KEY" -G "$API/search" --data-urlencode "q=cat"
+```
+
+## Upload quick test (no custom labels)
+```bash
+OBJ=test-$(date +%s).jpg
+curl -H "x-api-key: $KEY" -H "Content-Type: image/jpeg" \
+  -X PUT "$API/photos?objectKey=$OBJ" --data-binary @path/to/file.jpg
+```
