@@ -8,7 +8,9 @@ phases:
   build:
     commands:
       - echo "Deploying frontend to S3..."
-      - aws s3 sync frontend/ s3://cc-hw3-b1-frontend/ --delete --region us-east-1
+      - FRONTEND_BUCKET=${FRONTEND_BUCKET:-cc-hw3-b1-frontend}
+      - FRONTEND_REGION=${FRONTEND_REGION:-us-east-1}
+      - aws s3 sync frontend/ "s3://$FRONTEND_BUCKET/" --delete --region "$FRONTEND_REGION"
 
 artifacts:
   files: []
