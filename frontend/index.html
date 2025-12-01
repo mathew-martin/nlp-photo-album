@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NLP Photo Album</title>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="config.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="dot"></div>
+      <div>
+        <h1>Photo Album</h1>
+        <p>Search and browse your photos.</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <form id="search-form" class="search-inline">
+        <input id="search-input" name="q" type="text" placeholder="Search photos..." required>
+        <button type="submit">Search</button>
+      </form>
+      <button id="add-button" class="icon-btn" aria-label="Upload photo">+</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="card-header">
+        <h2>Gallery</h2>
+        <p>Latest photos (scroll to explore). Search to filter.</p>
+      </div>
+      <div id="results" class="results-grid"></div>
+      <div id="search-status" class="status"></div>
+    </section>
+  </main>
+
+  <div id="upload-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Upload Photo</h3>
+        <button id="close-modal" class="icon-btn" aria-label="Close">&times;</button>
+      </div>
+      <form id="upload-form">
+        <label for="file-input">Choose image</label>
+        <input id="file-input" name="file" type="file" accept="image/*" required>
+
+        <label for="custom-labels">Custom labels (comma separated, optional)</label>
+        <input id="custom-labels" name="customLabels" type="text" placeholder="e.g., vacation, friends">
+
+        <button type="submit">Upload</button>
+        <div id="upload-status" class="status"></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="lightbox" class="lightbox hidden">
+    <div class="lightbox-content">
+      <img id="lightbox-img" src="" alt="Selected photo">
+      <button class="icon-btn lightbox-arrow left" id="lightbox-prev" aria-label="Previous">&#8249;</button>
+      <button class="icon-btn lightbox-arrow right" id="lightbox-next" aria-label="Next">&#8250;</button>
+      <button class="icon-btn lightbox-close" id="lightbox-close" aria-label="Close">&times;</button>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,5 @@
+# Local config and build artifacts
+frontend/config.js
+node_modules/
+.DS_Store
+submission.txt
