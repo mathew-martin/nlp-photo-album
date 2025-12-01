@@ -24,8 +24,6 @@
   let currentResults = [];
   let currentIndex = 0;
 
-  document.getElementById("api-base").textContent = apiBase || "Not set";
-
   function setStatus(el, message, isError = false) {
     el.textContent = message || "";
     el.classList.toggle("error", Boolean(isError));
