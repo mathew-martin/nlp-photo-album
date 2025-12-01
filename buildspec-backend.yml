@@ -1,19 +1,36 @@
 version: 0.2
+
 phases:
   install:
     runtime-versions:
       python: 3.12
     commands:
       - pip install --upgrade awscli
+
   build:
     commands:
-      - echo "Zipping Lambdas"
-      - cd lambdas/index-photos && zip -r /tmp/index-photos.zip lambda_function.py
-      - cd ../search-photos && zip -r /tmp/search-photos.zip lambda_search.py
+      - echo "Zipping index-photos lambda..."
+      - cd lambdas/index-photos
+      - zip -r /tmp/index-photos.zip .
+      - cd ../../
+
+      - echo "Zipping search-photos lambda..."
+      - cd lambdas/search-photos
+      - zip -r /tmp/search-photos.zip .
+      - cd ../../
+
   post_build:
     commands:
-      - echo "Updating Lambda code"
-      - aws lambda update-function-code --function-name cc-hw3-lf1-index-photos --zip-file fileb:///tmp/index-photos.zip --region us-east-1
-      - aws lambda update-function-code --function-name cc-hw3-lf2-search-photos --zip-file fileb:///tmp/search-photos.zip --region us-east-1
+      - echo "Updating Lambda functions..."
+      - aws lambda update-function-code \
+          --function-name YOUR_INDEX_LAMBDA_NAME \
+          --zip-file fileb:///tmp/index-photos.zip \
+          --region us-east-1
+
+      - aws lambda update-function-code \
+          --function-name YOUR_SEARCH_LAMBDA_NAME \
+          --zip-file fileb:///tmp/search-photos.zip \
+          --region us-east-1
+
 artifacts:
   files: []

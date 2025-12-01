@@ -1,13 +1,14 @@
 version: 0.2
+
 phases:
   install:
-    runtime-versions:
-      nodejs: 18
     commands:
-      - npm install -g aws-cli || pip install --upgrade awscli
+      - pip install --upgrade awscli
+
   build:
     commands:
-      - echo "Syncing frontend to bucket"
+      - echo "Deploying frontend to S3..."
       - aws s3 sync frontend/ s3://cc-hw3-b1-frontend/ --delete --region us-east-1
+
 artifacts:
   files: []
