@@ -36,6 +36,7 @@ Parameters:
 Resources:
   PhotosBucket:
     Type: AWS::S3::Bucket
+    DependsOn: S3ToIndexPermission
     Properties:
       BucketName: !Ref PhotosBucketName
       PublicAccessBlockConfiguration:
@@ -367,7 +368,7 @@ Resources:
       Action: lambda:InvokeFunction
       FunctionName: !Ref IndexLambda
       Principal: s3.amazonaws.com
-      SourceArn: !GetAtt PhotosBucket.Arn
+      SourceArn: !Sub "arn:aws:s3:::${PhotosBucketName}"
 
   ApiGatewayRestApi:
     Type: AWS::ApiGateway::RestApi

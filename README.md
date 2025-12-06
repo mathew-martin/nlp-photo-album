@@ -22,13 +22,14 @@ An S3/OpenSearch/Lex powered photo album with natural-language search, automatic
 - CI/CD (CodePipeline/CodeBuild):
   - Artifact bucket: `nlp-photo-album-codepipeline-artifacts`
   - Pipelines: `nlp-photo-album-backend-pipeline` (deploys LF1/LF2), `nlp-photo-album-frontend-pipeline` (syncs frontend to B1)
-  - Buildspecs: `buildspec-backend.yml`, `buildspec-frontend.yml`
+  - Buildspecs: `buildspec-backend.yml` (packages Lambdas to `artifacts/*.zip`), `buildspec-backend-deploy.yml` (updates LF1/LF2 from those zips), `buildspec-frontend.yml`
 
 ## Pipeline troubleshooting (what went wrong and the fixes)
 - Both backend and frontend CodeBuild projects were failing in `DOWNLOAD_SOURCE` with `authorization failed for primary source` because the CodeBuild roles lacked permission to use the GitHub CodeStar connection. Fix: add an inline policy granting `codestar-connections:UseConnection` on `arn:aws:codeconnections:us-east-1:217522444053:connection/b8e76c7f-11c6-46e7-9baa-bd33e49b575d` to:
   - Backend role: `nlp-photo-album-codebuild-backend-role`
   - Frontend role: `nlp-photo-album-codebuild-frontend-role`
-- Backend POST_BUILD then failed because multiline `aws lambda update-function-code` commands were mis-parsed and dropped `--function-name`. Fix: flatten the two Lambda update commands to single lines in `buildspec-backend.yml`.
+- Backend POST_BUILD then failed because multiline `aws lambda update-function-code` commands were mis-parsed and dropped `--function-name`. That logic now lives in `buildspec-backend-deploy.yml` (separate Deploy stage), and the lines remain flattened.
+- Updated CI/CD to match the assignment requirement for a Deploy stage: `buildspec-backend.yml` only packages the Lambdas (outputs zips under `artifacts/`), and `buildspec-backend-deploy.yml` consumes those zips to update LF1/LF2. A CloudFormation helper template at `cloudformation/pipelines.yaml` now stands up both backend (Source → Build → Deploy) and frontend (Source → Build) pipelines using these buildspecs (expects an existing artifact bucket and CodeStar connection).
 - Both CodeBuild projects are configured to read `buildspec-backend.yml` / `buildspec-frontend.yml` from the repo. After the above fixes, pipelines run successfully (backend deploys LF1/LF2, frontend syncs to the S3 static site bucket).
 
 ## Repo layout
@@ -37,6 +38,17 @@ An S3/OpenSearch/Lex powered photo album with natural-language search, automatic
 - `frontend/` — static site (HTML/CSS/JS + config.example.js)
 - `buildspec-backend.yml` — zips Lambdas and updates LF1/LF2
 - `buildspec-frontend.yml` — syncs `frontend/` to the frontend bucket
+
+## CloudFormation stack (step 7)
+- `cloudformation/template.yaml` stands up the minimal assignment stack: photos bucket with Lambda trigger, frontend website bucket (public hosting), index/search Lambdas (inline code), API Gateway with `/photos` S3 proxy and `/search` Lambda proxy, API key/usage plan, and CORS.
+- Deploy example (customize parameters as needed):
+  ```bash
+  aws cloudformation deploy \
+    --template-file cloudformation/template.yaml \
+    --stack-name nlp-photo-album-stack \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --parameter-overrides PhotosBucketName=cc-hw3-b2-photos FrontendBucketName=cc-hw3-b1-frontend
+  ```
 
 ## Frontend usage
 1) Create `frontend/config.js`:
@@ -62,6 +74,12 @@ An S3/OpenSearch/Lex powered photo album with natural-language search, automatic
 - Backend CodeBuild: `nlp-photo-album-backend-build` (role `nlp-photo-album-codebuild-backend-role`)
 - Frontend CodeBuild: `nlp-photo-album-frontend-build` (role `nlp-photo-album-codebuild-frontend-role`)
 - Runs on push to `main` and deploys automatically.
+
+## Pipeline templates
+- `cloudformation/pipelines.yaml` provisions both pipelines. Parameters include `ArtifactBucketName` (defaults to `nlp-photo-album-codepipeline-artifacts`), `CodeStarConnectionArn`, `FrontendBucketName`, and `FrontendRegion`.
+- Backend pipeline: Source → Build → Deploy. Build uses `buildspec-backend.yml` to emit `artifacts/index-photos.zip` and `artifacts/search-photos.zip`; Deploy runs `buildspec-backend-deploy.yml` to update the Lambda code.
+- Frontend pipeline: Source → Build (deploys static site) using `buildspec-frontend.yml`; CodeBuild env vars pass the target bucket/region from the template parameters.
+- Deploy example: `aws cloudformation deploy --template-file cloudformation/pipelines.yaml --stack-name nlp-photo-album-pipelines --capabilities CAPABILITY_NAMED_IAM`
 
 ## API quick test
 ```bash

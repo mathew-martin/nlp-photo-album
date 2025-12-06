@@ -6,26 +6,22 @@ phases:
       python: 3.12
     commands:
       - pip install --upgrade awscli
+      - command -v zip >/dev/null 2>&1 || yum install -y zip
 
   build:
     commands:
+      - set -e
+      - ARTIFACTS_DIR=${ARTIFACTS_DIR:-artifacts}
+      - mkdir -p "$ARTIFACTS_DIR"
+
       - echo "Zipping index-photos lambda..."
-      - cd lambdas/index-photos
-      - zip -r /tmp/index-photos.zip .
-      - cd ../../
+      - (cd lambdas/index-photos && zip -r "../../$ARTIFACTS_DIR/index-photos.zip" .)
 
       - echo "Zipping search-photos lambda..."
-      - cd lambdas/search-photos
-      - zip -r /tmp/search-photos.zip .
-      - cd ../../
-
-  post_build:
-    commands:
-      - echo "Updating Lambda functions..."
-      - INDEX_LAMBDA_NAME=${INDEX_LAMBDA_NAME:-cc-hw3-lf1-index-photos}
-      - SEARCH_LAMBDA_NAME=${SEARCH_LAMBDA_NAME:-cc-hw3-lf2-search-photos}
-      - aws lambda update-function-code --function-name "$INDEX_LAMBDA_NAME" --zip-file fileb:///tmp/index-photos.zip --region us-east-1
-      - aws lambda update-function-code --function-name "$SEARCH_LAMBDA_NAME" --zip-file fileb:///tmp/search-photos.zip --region us-east-1
+      - (cd lambdas/search-photos && zip -r "../../$ARTIFACTS_DIR/search-photos.zip" .)
 
 artifacts:
-  files: []
+  base-directory: artifacts
+  files:
+    - index-photos.zip
+    - search-photos.zip
